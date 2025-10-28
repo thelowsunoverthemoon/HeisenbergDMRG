@@ -43,6 +43,7 @@ def merge_blocks(block1, block2):
         hamiltonian = np.kron(block1.hamiltonian, np.identity(m_L2))
                     + np.kron(np.identity(m_L1), block2.hamiltonian)
                     + get_two_site_interaction(block1.spin_z_operator, block1.spin_raise_operator, block2.spin_z_operator, block2.spin_raise_operator),
+        # Unclear if the two following operators have any meaning in the super-block, but this works correctly for enlarged blocks
         spin_z_operator = np.kron(np.identity(m_L1 * m_L2 // 2), spin_z),
         spin_raise_operator = np.kron(np.identity(m_L1 * m_L2 // 2), spin_raise)
     )
