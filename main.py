@@ -13,50 +13,12 @@ single_site = Block(
     spin_raise_operator = spin_raise
 )
 
-def step(system, env, keep, debug):
-    system_enlarge = enlarge(system)
-    print_block(system_enlarge)
-    env_enlarge = enlarge(env)
-    print_block(env_enlarge)
-    superblock = create_symmetric_super_block(system_enlarge, env_enlarge)
-
-    # get lowest energy groundstate (smallest eigenvalue)
-    (energy,), wave_function = eigsh(superblock.hamiltonian, k=1, which="SA") 
-    wave_function = wave_function.reshape([system_enlarge.basis, -1], order="C")
-    rho = np.dot(wave_function, wave_function.conjugate().transpose())
-
-    eigenvalues, eigenvectors, eigenstates = diagonalize_matrix(rho)
-    eigenstates.sort(key=itemgetter(0), reverse=True)
-
-    if (debug):
-        print("Superblock Hamiltonian: ", superblock.hamiltonian)
-        print("Ground state energy: ", energy)
-        print("Wave Function: ", wave_function)
-        print("Rho: ", rho)
-        print("Eigenvalues: ", eigenvalues)
-        print("Eigenvectors: ", eigenvectors)
-        print("Eigenstates: ", eigenstates)
-
-    return system, 0
-
-def infinite_dmrg(sites, keep, start, debug=False):
-    block = start
-    block, energy = step(block, block, keep, debug)
-    # Commented avoid infinite loop
-    # while 2 * block.length < sites:
-    #    block, energy = step(block, block, keep)
-
-def diagonalize_matrix(rho):
-    eigenvalues, eigenvectors = np.linalg.eigh(rho)
-    eigenstates = []
-    for eval, evec in zip(eigenvalues, eigenvectors.transpose()):
-        eigenstates.append((eval, evec))
-    return (eigenvalues, eigenvectors, eigenstates)
-
+# merges block with a single site
 def enlarge(block):
     return merge_blocks(block, single_site)
 
-def create_symmetric_super_block(system, env):
+# merges the provided system and environment blocks
+def create_super_block(system, env):
     return merge_blocks(system, env)
 
 # Common code for creating both enlarged blocks and super-blocks
@@ -75,6 +37,51 @@ def merge_blocks(block1, block2):
         spin_z_operator = np.kron(np.identity(m_L1 * m_L2 // 2), spin_z),
         spin_raise_operator = np.kron(np.identity(m_L1 * m_L2 // 2), spin_raise)
     )
+
+# computes the eigenvalues and eigenvectors of rho, and returns them as pairs
+def diagonalize_matrix(rho):
+    eigenvalues, eigenvectors = np.linalg.eigh(rho)
+    eigenstates = []
+    for eval, evec in zip(eigenvalues, eigenvectors.transpose()):
+        eigenstates.append((eval, evec))
+    return (eigenvalues, eigenvectors, eigenstates)
+
+def step(system, env, keep, debug):
+    system_enlarge = enlarge(system)
+    print_block(system_enlarge)
+    env_enlarge = enlarge(env)
+    print_block(env_enlarge)
+    superblock = create_super_block(system_enlarge, env_enlarge)
+    print_block(superblock)
+
+    # get lowest energy groundstate (smallest eigenvalue)
+    # wave_function represnts the ground state of the super-block, with its corresponding energy
+    (energy,), wave_function = eigsh(superblock.hamiltonian, k=1, which="SA")
+    
+    # create rho_L, the reduced density matrix of the left enlarged block
+    wave_function = wave_function.reshape([system_enlarge.basis, -1], order="C")
+    rho_L = np.dot(wave_function, wave_function.conjugate().transpose())
+
+    eigenvalues, eigenvectors, eigenstates = diagonalize_matrix(rho_L)
+    eigenstates.sort(key=itemgetter(0), reverse=True)
+
+    if (debug):
+        print("Superblock Hamiltonian:\n", superblock.hamiltonian)
+        print("Ground state energy: ", energy)
+        print("Wave Function:\n", wave_function)
+        print("Rho:\n", rho_L)
+        print("Eigenvalues: ", eigenvalues)
+        print("Eigenvectors:\n", eigenvectors)
+        print("Eigenstates:\n", eigenstates)
+
+    return system, 0
+
+def infinite_dmrg(sites, keep, start, debug=False):
+    block = start
+    block, energy = step(block, block, keep, debug)
+    # Commented avoid infinite loop
+    # while 2 * block.length < sites:
+    #    block, energy = step(block, block, keep)
 
 if __name__ == "__main__":
     np.set_printoptions(precision=10, suppress=True)
