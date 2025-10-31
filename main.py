@@ -46,13 +46,19 @@ def diagonalize_matrix(rho):
         eigenstates.append((eval, evec))
     return (eigenvalues, eigenvectors, eigenstates)
 
+def transform_basis(operator, transformation):
+    return transformation.conjugate().transpose().dot(operator.dot(transformation))
+
 def step(system, env, keep, debug):
     system_enlarge = enlarge(system)
-    print_block(system_enlarge)
     env_enlarge = enlarge(env)
-    print_block(env_enlarge)
     superblock = create_super_block(system_enlarge, env_enlarge)
-    print_block(superblock)
+    
+    if (debug):
+        print("Skip")
+        # print_block(system_enlarge)
+        # print_block(env_enlarge)
+        # print_block(superblock)
 
     # get lowest energy groundstate (smallest eigenvalue)
     # wave_function represnts the ground state of the super-block, with its corresponding energy
@@ -64,17 +70,45 @@ def step(system, env, keep, debug):
 
     eigenvalues, eigenvectors, eigenstates = diagonalize_matrix(rho_L)
     eigenstates.sort(key=itemgetter(0), reverse=True)
+    
+    new_basis = min(len(eigenstates), keep)
+    used_eigenstates = eigenstates[:new_basis]
+    transformation_matrix = np.zeros((system_enlarge.basis, new_basis), dtype='d', order='F')
+    
+    # fill the transformation matrix with the first new_basis eigenstates
+    for i, (eval, evec) in enumerate(used_eigenstates):
+        transformation_matrix[:, i] = evec
+    
+    new_length = system_enlarge.length
+    new_hamiltonian = transform_basis(system_enlarge.hamiltonian, transformation_matrix)
+    new_spin_z_operator = transform_basis(system_enlarge.spin_z_operator, transformation_matrix)
+    new_spin_raise_operator = transform_basis(system_enlarge.spin_raise_operator, transformation_matrix)
+    
+    new_block = Block(
+        length = new_length,
+        basis = new_basis,
+        hamiltonian = new_hamiltonian,
+        spin_z_operator = new_spin_z_operator,
+        spin_raise_operator = new_spin_raise_operator
+    )
 
     if (debug):
-        print("Superblock Hamiltonian:\n", superblock.hamiltonian)
-        print("Ground state energy: ", energy)
-        print("Wave Function:\n", wave_function)
-        print("Rho:\n", rho_L)
-        print("Eigenvalues: ", eigenvalues)
-        print("Eigenvectors:\n", eigenvectors)
-        print("Eigenstates:\n", eigenstates)
+        # print("Superblock Hamiltonian:\n", superblock.hamiltonian)
+        # print("Ground state energy: ", energy)
+        # print("Wave Function:\n", wave_function)
+        # print("Rho:\n", rho_L)
+        # print("Eigenvalues: ", eigenvalues)
+        # print("Eigenvectors:\n", eigenvectors)
+        # print("Eigenstates:\n", eigenstates)
+        # print("Used eigenstates:\n", used_eigenstates)
+        print("new block length: ", new_block.length)
+        print("new block basis: ", new_block.basis)
+        print("new block hamiltonian:\n", new_block.hamiltonian)
+        print("new block spin z:\n", new_block.spin_z_operator)
+        print("new block spin raise:\n", new_block.spin_raise_operator)
+        print("energy: ", energy)
 
-    return system, 0
+    return new_block, energy
 
 def infinite_dmrg(sites, keep, start, debug=False):
     block = start
