@@ -46,6 +46,7 @@ def diagonalize_matrix(rho):
         eigenstates.append((eval, evec))
     return (eigenvalues, eigenvectors, eigenstates)
 
+# changes the basis of the operator matrix using the transformation matrix
 def transform_basis(operator, transformation):
     return transformation.conjugate().transpose().dot(operator.dot(transformation))
 
