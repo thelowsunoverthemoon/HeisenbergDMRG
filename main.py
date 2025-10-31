@@ -112,10 +112,19 @@ def step(system, env, keep, debug):
 
 def infinite_dmrg(sites, keep, start, debug=False):
     block = start
-    block, energy = step(block, block, keep, debug)
-    # Commented avoid infinite loop
-    # while 2 * block.length < sites:
-    #    block, energy = step(block, block, keep)
+    # block, energy = step(block, block, keep, debug)
+    
+    while 2 * block.length < sites:
+       block, energy = step(block, block, keep, debug=False)
+    
+    if (debug):
+        print("\n\nfinal block length: ", block.length)
+        print("\n\nfinal block basis: ", block.basis)
+        print("\n\nfinal block hamiltonian:\n", block.hamiltonian)
+        print("\n\nfinal block spin z:\n", block.spin_z_operator)
+        print("\n\nfinal block spin raise:\n", block.spin_raise_operator)
+        print("\n\nfinal energy: ", energy)
+        print("\n\nE/L: ", energy / (block.length * 2))
 
 if __name__ == "__main__":
     np.set_printoptions(precision=10, suppress=True)
