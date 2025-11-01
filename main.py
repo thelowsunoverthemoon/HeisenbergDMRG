@@ -1,4 +1,10 @@
+import os
+
 import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 from scipy.sparse.linalg import eigsh
 
 from operator import itemgetter
@@ -123,7 +129,7 @@ def infinite_dmrg(sites, keep, start, Jx, Jy, Jz, debug=False):
     
     while 2 * block.length < sites:
        block, energy = step(block, block, keep, Jx, Jy, Jz, debug=False)
-    
+
     if (debug):
         # print("\n\nfinal block length: ", block.length)
         # print("\n\nfinal block basis: ", block.basis)
@@ -133,16 +139,41 @@ def infinite_dmrg(sites, keep, start, Jx, Jy, Jz, debug=False):
         print("\n\nfinal energy: ", energy)
         print("\n\nE/L: ", energy / (block.length * 2))
 
-if __name__ == "__main__":
-    np.set_printoptions(precision=10, suppress=True)
-    sites = 100
+    return energy
+
+
+def gen_energy_graph():
+    site_list = list(range(10, 51, 10))
+
+    results = []
     start = single_site
 
-    print("Infinite DMRG with {} sites".format(sites))
-    print("XXX Model")
-    infinite_dmrg(sites = sites, keep = 20, start = start, debug=True, Jx=1.0, Jy=1.0, Jz=1.0)
-    print("XXZ Model")
-    infinite_dmrg(sites = sites, keep = 20, start = start, debug=True, Jx=1.0, Jy=1.0, Jz=0.5)
-    print("XYZ Model")
-    infinite_dmrg(sites = sites, keep = 20, start = start, debug=True, Jx=0.8, Jy=1.2, Jz=1.0)
-    print("Finished")
+    for sites in site_list:
+        print(f"Calculating energies for {sites} sites...")
+        energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=1.0)
+        results.append({'Sites': sites, 'Model': 'XXX', 'Energy': energy})
+
+        energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=0.5)
+        results.append({'Sites': sites, 'Model': 'XXZ', 'Energy': energy})
+        
+        energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=0.8, Jy=1.2, Jz=1.0)
+        results.append({'Sites': sites, 'Model': 'XYZ', 'Energy': energy})
+
+    df = pd.DataFrame(results)
+
+    plt.figure(figsize=(10,6))
+    sns.barplot(data=df, x='Sites', y='Energy', hue='Model')
+    plt.title('Energy vs Number of Sites for Different Heisenberg Models')
+
+    plt.savefig('visual/energy_vs_sites.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+
+if __name__ == "__main__":
+    sns.set_theme(style="whitegrid")
+    sns.set_palette("pastel")
+
+    np.set_printoptions(precision=10, suppress=True)
+
+    os.makedirs('visual', exist_ok=True)
+    gen_energy_graph()
