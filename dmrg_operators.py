@@ -25,8 +25,19 @@ single_site_h = np.array(
     dtype='d'
 )
 
-def get_two_site_interaction(spin_z_a, spin_raise_a, spin_z_b, spin_raise_b):
-    J = Jz = 1
-    xy = (J / 2) * (np.kron(spin_raise_a, spin_raise_b.conjugate().transpose()) + np.kron(spin_raise_a.conjugate().transpose(), spin_raise_b))
-    z = Jz * np.kron(spin_z_a, spin_z_b)
-    return xy + z
+def get_two_site_interaction(spin_z_a, spin_raise_a, spin_z_b, spin_raise_b,
+                             Jx=1.0, Jy=1.0, Jz=1.0):
+
+    Sx_a = 0.5 * (spin_raise_a + spin_raise_a.T)
+    Sx_b = 0.5 * (spin_raise_b + spin_raise_b.T)
+
+    Sy_a = -0.5j * (spin_raise_a - spin_raise_a.T)
+    Sy_b = -0.5j * (spin_raise_b - spin_raise_b.T)
+
+
+    H = (Jx * np.kron(Sx_a, Sx_b) +
+         Jy * np.kron(Sy_a, Sy_b) +
+         Jz * np.kron(spin_z_a, spin_z_b))
+
+    H = np.real_if_close(H, tol=1e-12)
+    return H
