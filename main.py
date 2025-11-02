@@ -1,4 +1,10 @@
+import os
+
 import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 from scipy.sparse.linalg import eigsh
 
 from operator import itemgetter
@@ -14,15 +20,15 @@ single_site = Block(
 )
 
 # merges block with a single site
-def enlarge(block):
-    return merge_blocks(block, single_site)
+def enlarge(block, Jx, Jy, Jz):
+    return merge_blocks(block, single_site, Jx, Jy, Jz)
 
 # merges the provided system and environment blocks
-def create_super_block(system, env):
-    return merge_blocks(system, env)
+def create_super_block(system, env, Jx, Jy, Jz):
+    return merge_blocks(system, env, Jx, Jy, Jz)
 
 # Common code for creating both enlarged blocks and super-blocks
-def merge_blocks(block1, block2):
+def merge_blocks(block1, block2, Jx, Jy, Jz):
     L1 = block1.length
     m_L1 = block1.basis
     L2 = block2.length
@@ -32,7 +38,13 @@ def merge_blocks(block1, block2):
         basis = m_L1 * m_L2,
         hamiltonian = np.kron(block1.hamiltonian, np.identity(m_L2))
                     + np.kron(np.identity(m_L1), block2.hamiltonian)
-                    + get_two_site_interaction(block1.spin_z_operator, block1.spin_raise_operator, block2.spin_z_operator, block2.spin_raise_operator),
+                    + get_two_site_interaction(
+                        block1.spin_z_operator,
+                        block1.spin_raise_operator,
+                        block2.spin_z_operator,
+                        block2.spin_raise_operator,
+                        Jx, Jy, Jz
+                    ),
         # Unclear if the two following operators have any meaning in the super-block, but this works correctly for enlarged blocks
         spin_z_operator = np.kron(np.identity(m_L1 * m_L2 // 2), spin_z),
         spin_raise_operator = np.kron(np.identity(m_L1 * m_L2 // 2), spin_raise)
@@ -50,10 +62,10 @@ def diagonalize_matrix(rho):
 def transform_basis(operator, transformation):
     return transformation.conjugate().transpose().dot(operator.dot(transformation))
 
-def step(system, env, keep, debug):
-    system_enlarge = enlarge(system)
-    env_enlarge = enlarge(env)
-    superblock = create_super_block(system_enlarge, env_enlarge)
+def step(system, env, keep, Jx, Jy, Jz, debug):
+    system_enlarge = enlarge(system, Jx, Jy, Jz)
+    env_enlarge = enlarge(env, Jx, Jy, Jz)
+    superblock = create_super_block(system_enlarge, env_enlarge, Jx, Jy, Jz)
     
     if (debug):
         print("Skip")
@@ -111,27 +123,57 @@ def step(system, env, keep, debug):
 
     return new_block, energy
 
-def infinite_dmrg(sites, keep, start, debug=False):
+def infinite_dmrg(sites, keep, start, Jx, Jy, Jz, debug=False):
     block = start
     # block, energy = step(block, block, keep, debug)
     
     while 2 * block.length < sites:
-       block, energy = step(block, block, keep, debug=False)
-    
+       block, energy = step(block, block, keep, Jx, Jy, Jz, debug=False)
+
     if (debug):
-        print("\n\nfinal block length: ", block.length)
-        print("\n\nfinal block basis: ", block.basis)
-        print("\n\nfinal block hamiltonian:\n", block.hamiltonian)
-        print("\n\nfinal block spin z:\n", block.spin_z_operator)
-        print("\n\nfinal block spin raise:\n", block.spin_raise_operator)
+        # print("\n\nfinal block length: ", block.length)
+        # print("\n\nfinal block basis: ", block.basis)
+        # print("\n\nfinal block hamiltonian:\n", block.hamiltonian)
+        # print("\n\nfinal block spin z:\n", block.spin_z_operator)
+        # print("\n\nfinal block spin raise:\n", block.spin_raise_operator)
         print("\n\nfinal energy: ", energy)
         print("\n\nE/L: ", energy / (block.length * 2))
 
-if __name__ == "__main__":
-    np.set_printoptions(precision=10, suppress=True)
-    sites = 100
+    return energy
+
+
+def gen_energy_graph():
+    site_list = list(range(10, 51, 10))
+
+    results = []
     start = single_site
 
-    print("Infinite DMRG with {} sites".format(sites))
-    infinite_dmrg(sites = sites, keep = 20, start = start, debug=True)
-    print("Finished")
+    for sites in site_list:
+        print(f"Calculating energies for {sites} sites...")
+        energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=1.0)
+        results.append({'Sites': sites, 'Model': 'XXX', 'Energy': energy})
+
+        energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=0.5)
+        results.append({'Sites': sites, 'Model': 'XXZ', 'Energy': energy})
+        
+        energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=0.8, Jy=1.2, Jz=1.0)
+        results.append({'Sites': sites, 'Model': 'XYZ', 'Energy': energy})
+
+    df = pd.DataFrame(results)
+
+    plt.figure(figsize=(10,6))
+    sns.barplot(data=df, x='Sites', y='Energy', hue='Model')
+    plt.title('Energy vs Number of Sites for Different Heisenberg Models')
+
+    plt.savefig('visual/energy_vs_sites.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+
+if __name__ == "__main__":
+    sns.set_theme(style="whitegrid")
+    sns.set_palette("pastel")
+
+    np.set_printoptions(precision=10, suppress=True)
+
+    os.makedirs('visual', exist_ok=True)
+    gen_energy_graph()
