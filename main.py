@@ -139,11 +139,11 @@ def infinite_dmrg(sites, keep, start, Jx, Jy, Jz, debug=False):
         print("\n\nfinal energy: ", energy)
         print("\n\nE/L: ", energy / (block.length * 2))
 
-    return energy
+    return energy / (block.length * 2)
 
 
 def gen_energy_graph():
-    site_list = list(range(10, 51, 10))
+    site_list = list(range(10, 101, 10))
 
     results = []
     start = single_site
@@ -163,8 +163,14 @@ def gen_energy_graph():
 
     plt.figure(figsize=(10,6))
     sns.barplot(data=df, x='Sites', y='Energy', hue='Model')
-    plt.title('Energy vs Number of Sites for Different Heisenberg Models')
+    plt.title('Energy Per Site vs Number of Sites for Different Heisenberg Models (Zoomed)')
 
+    ymin = df['Energy'].min()
+    ymax = df['Energy'].max()
+    padding = 0.05 * (ymax - ymin)
+    plt.ylim(ymin - padding, ymax + padding)
+
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     plt.savefig('visual/energy_vs_sites.png', dpi=300, bbox_inches='tight')
     plt.close()
     
