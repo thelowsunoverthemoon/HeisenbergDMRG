@@ -142,36 +142,113 @@ def infinite_dmrg(sites, keep, start, Jx, Jy, Jz, debug=False):
     return energy / (block.length * 2)
 
 
-def gen_energy_graph():
+def gen_XXX_graph(name, title):
+    j_list = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2]
+
+    results = []
+    start = single_site
+
+    print(f"Creating graph {name}")
+    for j in j_list:
+        energy = infinite_dmrg(sites=30, keep=20, start=start, debug=False, Jx=j, Jy=j, Jz=j)
+        results.append({'J': j, 'Energy': energy})
+
+    df = pd.DataFrame(results)
+
+    plt.figure(figsize=(10,6))
+    sns.barplot(data=df, x='J', y='Energy')
+    plt.title(title)
+    plt.savefig(os.path.join('visual', name), dpi=300, bbox_inches='tight')
+    plt.close()
+
+def gen_XXZ_graph(name, title):
+    j_list = [-2.0, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2.0]
+    start = single_site
+    print(f"Creating graph {name}")
+
+    data = []
+    for jx in j_list:
+        for jz in j_list:
+            energy = infinite_dmrg(sites=10, keep=20, start=start, debug=False, Jx=jx, Jy=jx, Jz=jz)
+            data.append({'Jx': jx, 'Jz': jz, 'Energy': energy})
+
+    df = pd.DataFrame(data)
+    heatmap_data = df.pivot(index='Jx', columns='Jz', values='Energy')
+
+    plt.figure(figsize=(8,6))
+    sns.heatmap(heatmap_data, cmap='coolwarm', cbar_kws={'label': 'Energy'})
+    plt.xlabel('Jz')
+    plt.ylabel('Jx')
+    plt.title(title)
+    plt.savefig(os.path.join('visual', name), dpi=300, bbox_inches='tight')
+    plt.close()
+
+def gen_keep_graph(name, title, zoom):
+    keep_list = list(range(10, 51, 10))
+
+    results = []
+    start = single_site
+
+    print(f"Creating graph {name}")
+    for k in keep_list:
+        
+        energy = infinite_dmrg(sites=20, keep=k, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=1.0)
+        results.append({'Keep': k, 'Model': 'XXX with J = 1.0', 'Energy': energy})
+
+        energy = infinite_dmrg(sites=20, keep=k, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=0.5)
+        results.append({'Keep': k, 'Model': 'XXZ with Jx = Jy = 1.0, Jz = 0.5', 'Energy': energy})
+        
+        energy = infinite_dmrg(sites=20, keep=k, start=start, debug=False, Jx=0.8, Jy=1.2, Jz=1.0)
+        results.append({'Keep': k, 'Model': 'XYZ with Jx = 0.8, Jy = 1.2, Jz = 1.0', 'Energy': energy})
+
+    df = pd.DataFrame(results)
+
+    plt.figure(figsize=(10,6))
+    sns.barplot(data=df, x='Keep', y='Energy', hue='Model')
+    plt.title(title)
+
+    if zoom:
+        ymin = df['Energy'].min()
+        ymax = df['Energy'].max()
+        padding = 0.05 * (ymax - ymin)
+        plt.ylim(ymin - padding, ymax + padding)
+
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.savefig(os.path.join('visual', name), dpi=300, bbox_inches='tight')
+    plt.close()
+
+def gen_energy_graph(name, title, zoom):
     site_list = list(range(10, 101, 10))
 
     results = []
     start = single_site
 
+    print(f"Creating graph {name}")
     for sites in site_list:
-        print(f"Calculating energies for {sites} sites...")
+        
         energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=1.0)
-        results.append({'Sites': sites, 'Model': 'XXX', 'Energy': energy})
+        results.append({'Sites': sites, 'Model': 'XXX with J = 1.0', 'Energy': energy})
 
         energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=1.0, Jy=1.0, Jz=0.5)
-        results.append({'Sites': sites, 'Model': 'XXZ', 'Energy': energy})
+        results.append({'Sites': sites, 'Model': 'XXZ with Jx = Jy = 1.0, Jz = 0.5', 'Energy': energy})
         
         energy = infinite_dmrg(sites=sites, keep=20, start=start, debug=False, Jx=0.8, Jy=1.2, Jz=1.0)
-        results.append({'Sites': sites, 'Model': 'XYZ', 'Energy': energy})
+        results.append({'Sites': sites, 'Model': 'XYZ with Jx = 0.8, Jy = 1.2, Jz = 1.0', 'Energy': energy})
 
     df = pd.DataFrame(results)
 
     plt.figure(figsize=(10,6))
     sns.barplot(data=df, x='Sites', y='Energy', hue='Model')
-    plt.title('Energy Per Site vs Number of Sites for Different Heisenberg Models (Zoomed)')
+    plt.title(title)
 
-    ymin = df['Energy'].min()
-    ymax = df['Energy'].max()
-    padding = 0.05 * (ymax - ymin)
-    plt.ylim(ymin - padding, ymax + padding)
+    if zoom:
+        ymin = df['Energy'].min()
+        ymax = df['Energy'].max()
+        padding = 0.05 * (ymax - ymin)
+        plt.ylim(ymin - padding, ymax + padding)
 
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-    plt.savefig('visual/energy_vs_sites.png', dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join('visual', name), dpi=300, bbox_inches='tight')
     plt.close()
     
 
@@ -182,4 +259,9 @@ if __name__ == "__main__":
     np.set_printoptions(precision=10, suppress=True)
 
     os.makedirs('visual', exist_ok=True)
-    gen_energy_graph()
+    gen_keep_graph('energy_vs_keep.png', 'Energy Per Site vs Keep (20 sites)', False)
+    gen_keep_graph('energy_vs_keep_zoomed.png', 'Energy Per Site vs Keep (20 sites, Zoomed)', True)
+    gen_XXZ_graph('energy_vs_j_xxz.png', 'Energy Per Site vs Jx, Jz (Jx and Jz from -2.0 to 2.0, 10 sites)')
+    gen_XXX_graph('energy_vs_j_xxx.png', 'Energy Per Site vs J for XXX Heisenberg Models (J from -2 to 2, 30 sites)')
+    gen_energy_graph('infinite_energy_vs_sites_zoomed.png', 'Energy Per Site vs Number of Sites for Different Heisenberg Models (Zoomed)', zoom=True)
+    gen_energy_graph('infinite_energy_vs_sites.png', 'Energy Per Site vs Number of Sites for Different Heisenberg Models', zoom=False)
