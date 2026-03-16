@@ -1,3 +1,3 @@
 # HeisenbergDMRG
 
-See pdf for paper and explanation.
+See [QuantumPaper.pdf](QuantumPaper.pdf)
